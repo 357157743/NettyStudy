@@ -1,13 +1,13 @@
 package com.mashibing.nettystudy.s01;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.EventLoopGroup;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.util.ReferenceCountUtil;
 
 /**
  * @date 2020/6/15 - 10:25
@@ -40,6 +40,7 @@ public class Client {
              f.sync();
             System.out.println(".....");
 
+            f.channel().closeFuture().sync();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }finally {
@@ -54,6 +55,38 @@ class ClientChannelInitializer extends  ChannelInitializer<SocketChannel> {
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
-        System.out.println(ch);
+        ch.pipeline().addLast(new CilentHandler());
     }
+}
+
+class CilentHandler extends ChannelInboundHandlerAdapter{
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        ByteBuf buf = null;
+        try {
+            buf = (ByteBuf) msg;
+            byte[] bytes = new  byte[buf.readableBytes()];
+            buf.getBytes(buf.readerIndex(),bytes);
+            System.out.println(new String(bytes));
+
+            /*System.out.println(buf);
+            System.out.println(buf.refCnt());*/
+        } catch (Exception e) {
+            e.printStackTrace();
+        }finally {
+            if(buf != null) ReferenceCountUtil.release(buf);
+            /*System.out.println(buf.refCnt());*/
+        }
+
+    }
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        // channel第一次连接上 可用写出一个字符串directory memory
+        ByteBuf buf = Unpooled.copiedBuffer("hello".getBytes());
+        ctx.writeAndFlush(buf);
+    }
+
+
 }
